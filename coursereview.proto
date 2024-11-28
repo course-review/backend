@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package coursereview;
+
+option go_package = ".";
+
+
+service CourseReviewService {
+
+    // GetAllTheData returns all the reviews and ratings
+    rpc GetAllTheData(GetAllReviewsRequest) returns (GetAllReviewsResponse) {}
+
+    // GetReviewedCourses returns all the names and ids of courses with the date of the last review
+    rpc GetReviewedCourses(GetReviewedCoursesRequest) returns (GetReviewedCoursesResponse) {}
+
+    // GetStats returns the total number of reviews and courses with reviews
+    rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
+
+    // GetRatings returns all the ratings for a course
+    rpc GetRatings(GetRatingsRequest) returns (GetRatingsResponse) {}
+
+    // GetReviews returns all the reviews for a course
+    rpc GetReviews(GetReviewsRequest) returns (GetReviewsResponse) {}
+
+    // GetUserData returns all the reviews and ratings for a user
+    rpc GetUserData(GetUserDataRequest) returns (GetUserDataResponse) {}
+
+    // Review adds, update, removes a review, rating and semester for a course
+    rpc Review(ReviewRequest) returns (ReviewResponse) {}
+}
+
+enum RatingId {
+    RECOMMENDED = 0;
+    INTERESTING = 1;
+    DIFFICULTY = 2;
+    EFFORT = 3;
+    RESOURCES = 4;
+}
+
+message Review {
+    string review = 1;
+    string semester = 2;
+}
+message Rating { 
+    RatingId rating_id = 1;
+    int32 rating = 2;
+}
+message ReviewWithCourse {
+    string course = 1;
+    Review review = 2;
+}
+message RatingWithCourse {
+    string course = 1;
+    Rating rating = 2;
+}
+message RatingReview {
+    string course = 1;
+    Review review = 2;
+    repeated Rating rating = 3;
+    string semester = 4;
+}
+message GetAllReviewsRequest {
+}
+message GetAllReviewsResponse {
+    repeated ReviewWithCourse reviews = 1;
+    repeated RatingWithCourse ratings = 2;
+}
+
+message GetReviewedCoursesRequest {
+}
+message CourseWithDate {
+    string name = 1;
+    string id = 2;
+    string date = 3;
+}
+message GetReviewedCoursesResponse {
+    repeated CourseWithDate courses = 1;
+}
+message GetStatsRequest {
+}
+message GetStatsResponse {
+    int32 total_reviews = 1;
+    int32 total_courses = 2;
+}
+
+message GetRatingsRequest {
+    string course = 1;
+}
+message GetRatingsResponse {
+    repeated Rating ratings = 1;
+}
+
+message GetReviewsRequest {
+    string course = 1;
+}
+message GetReviewsResponse {
+    repeated Rating ratings = 1;
+    repeated Review reviews = 2;
+}
+
+message GetUserDataRequest {
+    string user = 1;
+}
+message GetUserDataResponse {
+    repeated RatingReview data = 1;
+}
+
+message ReviewRequest {
+    string user = 1;
+    string course = 2;
+    repeated Rating rating = 3;
+    string semester = 4;
+}
