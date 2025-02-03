@@ -49,13 +49,15 @@ WHERE
 -- name: GetReviews :many
 SELECT
     review,
-    date
+    semester
 FROM
     reviews
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
 WHERE
     course_number = @course_number
-    AND reviews.published = TRUE;
+    AND reviews.published = TRUE
+ORDER BY
+    reviews.date DESC;
 
 -- name: GetUserData :many
 SELECT
@@ -65,7 +67,8 @@ SELECT
     ratings.difficulty,
     ratings.effort,
     ratings.resources,
-    course_evaluation_map.semester
+    semester,
+    course_number
 FROM
     reviews
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
@@ -94,10 +97,14 @@ VALUES
     (@user_id, @course_number, @semester) RETURNING *;
 
 -- name: SetReview :many
+WITH evaluation AS (
+    SELECT id
+    FROM course_evaluation_map
+    WHERE user_id = @user_id
+    AND course_number = @course_number
+)
 INSERT INTO
-    reviews (evaluation_id, review)
-VALUES
-    (@evaluation_id, @review) RETURNING *;
+    reviews (evaluation_id, review) VALUES (evaluation, @review) RETURNING *;
 
 -- name: SetRating :many
 INSERT INTO
@@ -212,3 +219,24 @@ FROM
 WHERE
     DATE(date) BETWEEN @start_date
     AND @end_date;
+
+-- name: GetReview :one
+SELECT
+    review
+FROM
+    reviews
+    JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
+WHERE
+    user_id = @user_id
+    AND course_number = @course_number;
+
+
+-- name: GetCourseEvaluationMap :one
+SELECT
+    id
+FROM
+    course_evaluation_map
+WHERE
+    user_id = @user_id
+    AND course_number = @course_number
+    AND semester = @semester;
