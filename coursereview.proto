@@ -111,3 +111,5 @@ message ReviewRequest {
     repeated Rating rating = 3;
     string semester = 4;
 }
+message ReviewResponse {
+}
