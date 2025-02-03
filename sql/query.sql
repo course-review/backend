@@ -86,19 +86,20 @@ WHERE
 -- FROM
 --     evaluation
 -- RETURNING *;
---name setMapping :none
+
+-- name: SetMapping :many
 INSERT INTO
     course_evaluation_map (user_id, course_number, semester)
 VALUES
-    (@user_id, @course_number, @semester);
+    (@user_id, @course_number, @semester) RETURNING *;
 
--- name: SetReview :none
+-- name: SetReview :many
 INSERT INTO
     reviews (evaluation_id, review, published)
 VALUES
-    (@evaluation_id, @review, @published);
+    (@evaluation_id, @review, @published) RETURNING *;
 
--- name: SetRating :none
+-- name: SetRating :many
 INSERT INTO
     ratings (
         evaluation_id,
@@ -116,39 +117,39 @@ VALUES
         @difficulty,
         @effort,
         @resources
-    );
+    ) RETURNING *;
 
--- name: SetEventLog
+-- name: SetEventLog :many
 INSERT INTO
     event_log (evaluation_id, user_id, action_id, info)
 VALUES
-    (@evaluation_id, @user_id, @action_id, @info);
+    (@evaluation_id, @user_id, @action_id, @info) RETURNING *;
 
--- name: SetUser
+-- name: SetUser :many
 INSERT INTO
     users (user_id, user_name)
 VALUES
-    (@user_id, @user_name);
+    (@user_id, @user_name) RETURNING *;
 
--- name: SetCourse
+-- name: SetCourse :many
 INSERT INTO
     courses (course_number, course_name)
 VALUES
-    (@course_number, @course_name);
+    (@course_number, @course_name) RETURNING *;
 
--- name: SetCourseAlias
+-- name: SetCourseAlias :many
 INSERT INTO
     course_number_alias (source, target)
 VALUES
-    (@source, @target);
+    (@source, @target) RETURNING *;
 
--- name: SetAction
+-- name: SetAction :many
 INSERT INTO
     actions (name)
 VALUES
-    (@name);
+    (@name) RETURNING *;
 
--- name: GetCourses
+-- name: GetCourses :many
 SELECT
     course_number,
     course_name
@@ -196,10 +197,10 @@ WHERE
 
 -- name: GetLogs :many
 SELECT
-    course_number,
+    courses.course_number,
     course_name,
     user_name,
-    action_name,
+    actions.name,
     info,
     date
 FROM
