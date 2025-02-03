@@ -98,13 +98,18 @@ VALUES
 
 -- name: SetReview :many
 WITH evaluation AS (
-    SELECT id
-    FROM course_evaluation_map
-    WHERE user_id = @user_id
-    AND course_number = @course_number
+    SELECT
+        id
+    FROM
+        course_evaluation_map
+    WHERE
+        user_id = @user_id
+        AND course_number = @course_number
 )
 INSERT INTO
-    reviews (evaluation_id, review) VALUES (evaluation, @review) RETURNING *;
+    reviews (evaluation_id, review)
+VALUES
+    (evaluation, @review) RETURNING *;
 
 -- name: SetRating :many
 INSERT INTO
@@ -229,7 +234,6 @@ FROM
 WHERE
     user_id = @user_id
     AND course_number = @course_number;
-
 
 -- name: GetCourseEvaluationMap :one
 SELECT
