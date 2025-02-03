@@ -25,8 +25,21 @@ service CourseReviewService {
     // GetUserData returns all the reviews and ratings for a user
     rpc GetUserData(GetUserDataRequest) returns (GetUserDataResponse) {}
 
-    // Review adds, update, removes a review, rating and semester for a course
-    rpc Review(ReviewRequest) returns (ReviewResponse) {}
+    // UpdateReview updates a review
+    rpc UpdateReview(UpdateReviewRequest) returns (UpdateReviewResponse) {}
+    
+    // DeleteReview removes a review
+    rpc DeleteReview(DeleteReviewRequest) returns (DeleteReviewResponse) {}
+
+    // UpdateRating updates a rating
+    rpc UpdateRating(UpdateRatingRequest) returns (UpdateRatingResponse) {}
+
+    // DeleteRating removes a rating
+    rpc DeleteRating(DeleteRatingRequest) returns (DeleteRatingResponse) {}
+
+    // ReviewSemester changes semester
+    rpc ReviewSemester(ReviewSemesterRequest) returns (ReviewSemesterResponse) {}
+
 }
 
 enum RatingId {
@@ -105,11 +118,46 @@ message GetUserDataResponse {
     repeated RatingReview data = 1;
 }
 
-message ReviewRequest {
+message UpdateReviewRequest {
     string user = 1;
     string course = 2;
-    repeated Rating rating = 3;
-    string semester = 4;
+    Review review = 3;
 }
-message ReviewResponse {
+message UpdateReviewResponse {
+}
+
+message DeleteReviewRequest {
+    string user = 1;
+    string course = 2;
+}
+
+message DeleteReviewResponse {
+}
+
+message UpdateRatingRequest {
+    string user = 1;
+    string course = 2;
+    Rating rating = 3;
+}
+
+message UpdateRatingResponse {
+}
+
+message DeleteRatingRequest {
+    string user = 1;
+    string course = 2;
+    RatingId rating_id = 3;
+}
+
+message DeleteRatingResponse {
+}
+
+
+message ReviewSemesterRequest {
+    string user = 1;
+    string course = 2;
+    string semester = 3;
+}
+
+message ReviewSemesterResponse {
 }
