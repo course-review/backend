@@ -95,9 +95,9 @@ VALUES
 
 -- name: SetReview :many
 INSERT INTO
-    reviews (evaluation_id, review, published)
+    reviews (evaluation_id, review)
 VALUES
-    (@evaluation_id, @review, @published) RETURNING *;
+    (@evaluation_id, @review) RETURNING *;
 
 -- name: SetRating :many
 INSERT INTO
