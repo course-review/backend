@@ -119,34 +119,30 @@ message GetUserDataResponse {
 }
 
 message UpdateReviewRequest {
-    string user = 1;
-    string course = 2;
-    Review review = 3;
+    int32 eval_id = 1;
+    Review review = 2;
 }
 message UpdateReviewResponse {
 }
 
 message DeleteReviewRequest {
-    string user = 1;
-    string course = 2;
+    int32 eval_id = 1;
 }
 
 message DeleteReviewResponse {
 }
 
 message UpdateRatingRequest {
-    string user = 1;
-    string course = 2;
-    Rating rating = 3;
+    int32 eval_id = 1;
+    Rating rating = 2;
 }
 
 message UpdateRatingResponse {
 }
 
 message DeleteRatingRequest {
-    string user = 1;
-    string course = 2;
-    RatingId rating_id = 3;
+    int32 eval_id = 1;
+    RatingId rating_id = 2;
 }
 
 message DeleteRatingResponse {
@@ -154,8 +150,7 @@ message DeleteRatingResponse {
 
 
 message ReviewSemesterRequest {
-    string user = 1;
-    string course = 2;
+    int32 eval_id = 1;
     string semester = 3;
 }
 
