@@ -3,6 +3,8 @@ sql:
   - engine: "postgresql"
     queries: "sql/query.sql"
     schema: "sql/schema.sql"
+    database:
+      uri: "postgresql://postgres:mysecretpassword@localhost:5432/postgres?sslmode=disable"
     gen:
       go:
         package: "sql"
