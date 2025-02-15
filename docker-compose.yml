@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  postgresql:
+    image: "postgres:16"
+    ports:
+      - "5432:5432"
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_USER: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+volumes:
+  postgres_data:
