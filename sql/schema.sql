@@ -68,3 +68,7 @@ CREATE TABLE course_number_alias (
     FOREIGN KEY (source) REFERENCES courses(course_number),
     FOREIGN KEY (target) REFERENCES courses(course_number)
 );
+
+CREATE TABLE current_semester (
+    semester VARCHAR(4) PRIMARY KEY -- Current semester
+);

@@ -30,6 +30,7 @@ SELECT
     COUNT(*) AS total_reviews
 FROM
     course_evaluation_map
+    JOIN reviews ON reviews.evaluation_id = course_evaluation_map.id
 WHERE
     published = TRUE;
 
@@ -227,7 +228,8 @@ WHERE
 
 -- name: GetReview :one
 SELECT
-    review
+    review,
+    course_evaluation_map.id
 FROM
     reviews
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
@@ -244,3 +246,106 @@ WHERE
     user_id = @user_id
     AND course_number = @course_number
     AND semester = @semester;
+
+-- name: UpdateSemester :one
+UPDATE
+    course_evaluation_map
+SET
+    semester = @semester
+WHERE
+    id = @evaluation_id
+    AND user_id = @user_id RETURNING *;
+
+-- name: UpdateReview :one
+UPDATE
+    reviews
+SET
+    review = @review
+FROM
+    reviews
+    JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
+WHERE
+    course_evaluation_map.user_id = @user_id
+    AND course_evaluation_map.user_id = @user_id RETURNING *;
+
+-- name: GetCurrentSemester :many
+SELECT
+    current_semester
+FROM
+    semester;
+
+-- name: RemoveCurrentSemester :one
+TRUNCATE TABLE current_semester;
+
+-- name: SetCurrentSemester :many
+INSERT INTO
+    current_semester (semester)
+VALUES
+    (@semester) RETURNING *;
+
+-- name: DeleteReview :one
+DELETE FROM
+    reviews
+WHERE
+    evaluation_id = @evaluation_id RETURNING *;
+
+-- name: UpdateRating :one
+UPDATE
+    ratings
+SET
+    recommended = @recommended,
+    engaging = @engaging,
+    difficulty = @difficulty,
+    effort = @effort,
+    resources = @resources
+WHERE
+    evaluation_id = @evaluation_id RETURNING *;
+
+-- name: DeleteRating :one
+DELETE FROM
+    ratings
+WHERE
+    evaluation_id = @evaluation_id RETURNING *;
+
+-- name: SetModerator :one
+UPDATE
+    users
+SET
+    moderator = NOT moderator
+WHERE
+    user_id = @user_id RETURNING *;
+
+-- name: GetModerators :many
+SELECT
+    user_id,
+    user_name
+FROM
+    users
+WHERE
+    moderator = TRUE;
+
+-- name: GetUnverifiedReviews :many
+SELECT
+    reviews.review,
+    course_evaluation_map.semester,
+    course_evaluation_map.course_number,
+    course_evaluation_map.user_id
+FROM
+    reviews
+    JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
+WHERE
+    reviews.published = FALSE;
+
+-- name: VerifyReview :one
+UPDATE
+    reviews
+SET
+    published = TRUE
+WHERE
+    evaluation_id = @evaluation_id RETURNING *;
+
+-- name: AddCourse :one
+INSERT INTO
+    courses (course_number, course_name)
+VALUES
+    (@course_number, @course_name) RETURNING *;
