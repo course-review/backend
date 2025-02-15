@@ -7,7 +7,7 @@ FROM
     JOIN courses ON course_evaluation_map.course_number = courses.course_number
     JOIN ratings ON reviews.evaluation_id = ratings.evaluation_id
 WHERE
-    reviews.published = TRUE;
+    reviews.published = 'verified';
 
 -- name: GetReviewedCourses :many
 SELECT
@@ -19,7 +19,7 @@ FROM
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
     JOIN courses ON course_evaluation_map.course_number = courses.course_number
 WHERE
-    reviews.published = TRUE
+    reviews.published = 'verified'
 GROUP BY
     courses.course_name,
     courses.course_number;
@@ -32,7 +32,7 @@ FROM
     course_evaluation_map
     JOIN reviews ON reviews.evaluation_id = course_evaluation_map.id
 WHERE
-    published = TRUE;
+    published = 'verified';
 
 -- name: GetRatings :many
 SELECT
@@ -56,7 +56,7 @@ FROM
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
 WHERE
     course_number = @course_number
-    AND reviews.published = TRUE
+    AND reviews.published = 'verified'
 ORDER BY
     reviews.date DESC;
 
@@ -109,8 +109,11 @@ WITH evaluation AS (
 )
 INSERT INTO
     reviews (evaluation_id, review)
-VALUES
-    (evaluation, @review) RETURNING *;
+SELECT
+    id,
+    @review
+FROM
+    evaluation RETURNING *;
 
 -- name: SetRating :many
 INSERT INTO
@@ -262,17 +265,16 @@ UPDATE
 SET
     review = @review
 FROM
-    reviews
-    JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
+    course_evaluation_map
 WHERE
-    course_evaluation_map.user_id = @user_id
+    reviews.evaluation_id = course_evaluation_map.id
     AND course_evaluation_map.user_id = @user_id RETURNING *;
 
 -- name: GetCurrentSemester :many
 SELECT
-    current_semester
+    semester
 FROM
-    semester;
+    current_semester;
 
 -- name: RemoveCurrentSemester :one
 TRUNCATE TABLE current_semester;
@@ -334,13 +336,13 @@ FROM
     reviews
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
 WHERE
-    reviews.published = FALSE;
+    reviews.published = 'pending';
 
 -- name: VerifyReview :one
 UPDATE
     reviews
 SET
-    published = TRUE
+    published = 'verified'
 WHERE
     evaluation_id = @evaluation_id RETURNING *;
 

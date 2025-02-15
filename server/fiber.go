@@ -93,7 +93,7 @@ func main() {
 		return c.JSON(data)
 	})
 
-	app.Post("/searchCourses", func(c *fiber.Ctx) error {
+	app.Get("/searchCourses", func(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Not implemented"})
 	})
 
@@ -217,7 +217,7 @@ func main() {
 		return c.JSON(fiber.Map{"success": val})
 	})
 
-	app.Post("/getUnverifiedReviews", func(c *fiber.Ctx) error {
+	app.Get("/getUnverifiedReviews", func(c *fiber.Ctx) error {
 		reviews, err := db.GetUnverifiedReviews(c.Context())
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})

@@ -4,7 +4,7 @@ CREATE TABLE courses (
 );
 
 CREATE TABLE users (
-    user_id VARCHAR(16) PRIMARY KEY, -- Unique identifier for the user
+    user_id VARCHAR(128) PRIMARY KEY, -- Unique identifier for the user
     user_name TEXT, -- Name of the user
     admin BOOLEAN DEFAULT FALSE, -- Indicates if the user is an admin
     moderator BOOLEAN DEFAULT FALSE, -- Indicates if the user is a moderator
@@ -14,18 +14,20 @@ CREATE TABLE users (
 
 CREATE TABLE course_evaluation_map (
     id SERIAL PRIMARY KEY, -- Unique ID for each mapping
-    user_id VARCHAR(16) NOT NULL, -- User associated with the evaluation
+    user_id VARCHAR(128) NOT NULL, -- User associated with the evaluation
     course_number VARCHAR(12) NOT NULL, -- Course associated with the evaluation
     semester VARCHAR(4) DEFAULT NULL, -- Semester in which the evaluation was performed
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (course_number) REFERENCES courses(course_number)
 );
 
+CREATE TYPE status AS ENUM ('pending', 'verified', 'rejected');
+
 CREATE TABLE reviews (
     id SERIAL PRIMARY KEY, -- Unique identifier for the review
     evaluation_id INTEGER NOT NULL, -- Reference to the evaluation
     date DATE DEFAULT NOW(), -- Date of the review
-    published BOOLEAN DEFAULT FALSE, -- Indicates if the review is published
+    published status DEFAULT 'pending', -- Indicates if the review is published
     review TEXT NOT NULL, -- Content of the review
     requested_changes TEXT DEFAULT NULL, -- Changes requested for the review
     updated_review TEXT DEFAULT NULL, -- Updated version of the review
@@ -47,7 +49,7 @@ CREATE TABLE ratings (
 CREATE TABLE event_log (
     id SERIAL PRIMARY KEY, -- Unique identifier for the log entry
     evaluation_id INTEGER, -- Reference to the evaluation
-    user_id VARCHAR(16), -- User associated with the log entry
+    user_id VARCHAR(128), -- User associated with the log entry
     action_id INTEGER, -- Action performed
     info TEXT, -- Additional information
     date DATE DEFAULT NOW(), -- Date of the event
