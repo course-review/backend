@@ -1,5 +1,6 @@
-To generate the proto file:
-`protoc --go-grpc_out=generated/proto/ --go_out=generated/proto/ coursereview.proto`
-
-To generate the sqlc files:
+To generate the sqlc files:  
 `sqlc generate`
+
+To run the server:  
+`docker compose up -d`  
+`go run server/fiber.go`
