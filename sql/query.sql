@@ -22,7 +22,9 @@ WHERE
     reviews.published = 'verified'
 GROUP BY
     courses.course_name,
-    courses.course_number;
+    courses.course_number
+ORDER BY
+    DATE DESC;
 
 -- name: GetStats :one
 SELECT
@@ -351,3 +353,11 @@ INSERT INTO
     courses (course_number, course_name)
 VALUES
     (@course_number, @course_name) RETURNING *;
+
+-- name: GetCourseName :one
+SELECT
+    course_name
+FROM
+    courses
+WHERE
+    course_number = @course_number;

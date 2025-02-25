@@ -9,11 +9,19 @@ import (
 
 	"coursereview/app/generated/sql"
 
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/jackc/pgx/v5"
-
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+func connectDB() (*pgxpool.Pool, error) {
+	dbURL := "postgres://postgres:mysecretpassword@localhost:5432/postgres"
+	pool, err := pgxpool.New(context.Background(), dbURL)
+	if err != nil {
+		return nil, err
+	}
+	return pool, nil
+}
 
 //todo check if user is allowed to do the action
 
@@ -22,15 +30,14 @@ func main() {
 	app := fiber.New()
 	app.Use(logger.New())
 
-	// urlExample := "postgres://username:password@localhost:5432/database_name"
-	conn, err := pgx.Connect(context.Background(), "postgres://postgres:mysecretpassword@localhost:5432/postgres")
+	pool, err := connectDB()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
+	defer pool.Close()
 
-	db := sql.New(conn)
+	db := sql.New(pool)
 
 	// Testing endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -97,12 +104,20 @@ func main() {
 		return c.Status(500).JSON(fiber.Map{"error": "Not implemented"})
 	})
 
-	app.Get("/currentSemester", func(c *fiber.Ctx) error {
+	app.Get("/currentSemesters", func(c *fiber.Ctx) error {
 		semester, err := db.GetCurrentSemester(c.Context())
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.JSON(semester)
+	})
+
+	app.Get("/courseName", func(c *fiber.Ctx) error {
+		data, err := db.GetCourseName(c.Context(), c.Query("course"))
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(data)
 	})
 
 	// // // // // // // // //
