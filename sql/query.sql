@@ -71,11 +71,13 @@ SELECT
     ratings.effort,
     ratings.resources,
     semester,
-    course_number
+    course_evaluation_map.course_number,
+    course_name
 FROM
     reviews
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
     JOIN ratings ON reviews.evaluation_id = ratings.evaluation_id
+    JOIN courses ON course_evaluation_map.course_number = courses.course_number
 WHERE
     user_id = @user_id;
 
