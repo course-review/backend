@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"coursereview/app/generated/sql"
 
@@ -214,8 +215,7 @@ func main() {
 
 	app.Post("/setCurrentSemester", func(c *fiber.Ctx) error {
 		db.RemoveCurrentSemester(c.Context())
-
-		for _, semester := range c.Query("semester") {
+		for _, semester := range strings.Split(c.Query("list"), ",") {
 			_, err := db.SetCurrentSemester(c.Context(), string(semester))
 			if err != nil {
 				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -225,7 +225,7 @@ func main() {
 	})
 
 	app.Post("/setModerator", func(c *fiber.Ctx) error {
-		val, err := db.SetModerator(c.Context(), c.String())
+		val, err := db.SetModerator(c.Context(), c.Query("user"))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -241,11 +241,15 @@ func main() {
 	})
 
 	app.Post("/verifyReview", func(c *fiber.Ctx) error {
-		data, err := strconv.Atoi(c.Query("id"))
+		review, err := db.VerifyReview(c.Context(), int32(c.QueryInt("id")))
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Invalid ID"})
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
-		review, err := db.VerifyReview(c.Context(), int32(data))
+		return c.JSON(review)
+	})
+
+	app.Post("/rejectReview", func(c *fiber.Ctx) error {
+		review, err := db.RejectReview(c.Context(), int32(c.QueryInt("id")))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}

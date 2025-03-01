@@ -333,12 +333,14 @@ WHERE
 -- name: GetUnverifiedReviews :many
 SELECT
     reviews.review,
-    course_evaluation_map.semester,
     course_evaluation_map.course_number,
-    course_evaluation_map.user_id
+    courses.course_name,
+    course_evaluation_map.user_id,
+    course_evaluation_map.id
 FROM
     reviews
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
+    JOIN courses ON course_evaluation_map.course_number = courses.course_number
 WHERE
     reviews.published = 'pending';
 
@@ -347,6 +349,14 @@ UPDATE
     reviews
 SET
     published = 'verified'
+WHERE
+    evaluation_id = @evaluation_id RETURNING *;
+
+-- name: RejectReview :one
+UPDATE
+    reviews
+SET
+    published = 'rejected'
 WHERE
     evaluation_id = @evaluation_id RETURNING *;
 
