@@ -72,7 +72,9 @@ SELECT
     ratings.resources,
     semester,
     course_evaluation_map.course_number,
-    course_name
+    course_name,
+    reviews.id as ReviewId,
+    ratings.id as RatingId
 FROM
     reviews
     JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
@@ -102,22 +104,10 @@ VALUES
     (@user_id, @course_number, @semester) RETURNING *;
 
 -- name: SetReview :many
-WITH evaluation AS (
-    SELECT
-        id
-    FROM
-        course_evaluation_map
-    WHERE
-        user_id = @user_id
-        AND course_number = @course_number
-)
 INSERT INTO
     reviews (evaluation_id, review)
-SELECT
-    id,
-    @review
-FROM
-    evaluation RETURNING *;
+VALUES
+    (@evaluation_id, @review) RETURNING *;
 
 -- name: SetRating :many
 INSERT INTO
@@ -244,6 +234,12 @@ WHERE
     user_id = @user_id
     AND course_number = @course_number;
 
+-- name: SetCourseEvaluationMap :one
+INSERT INTO
+    course_evaluation_map (user_id, course_number, semester)
+VALUES
+    (@user_id, @course_number, @semester) RETURNING id;
+
 -- name: GetCourseEvaluationMap :one
 SELECT
     id
@@ -251,8 +247,7 @@ FROM
     course_evaluation_map
 WHERE
     user_id = @user_id
-    AND course_number = @course_number
-    AND semester = @semester;
+    AND course_number = @course_number;
 
 -- name: UpdateSemester :one
 UPDATE
@@ -272,6 +267,7 @@ FROM
     course_evaluation_map
 WHERE
     reviews.evaluation_id = course_evaluation_map.id
+    AND course_evaluation_map.id = @evaluation_id
     AND course_evaluation_map.user_id = @user_id RETURNING *;
 
 -- name: GetCurrentSemester :many
@@ -373,3 +369,20 @@ FROM
     courses
 WHERE
     course_number = @course_number;
+
+-- name: GetUser :one
+SELECT
+    *
+FROM
+    users
+WHERE
+    user_id = @user_id;
+
+-- name: CheckUserWithId :one
+SELECT
+    *
+FROM
+    course_evaluation_map
+WHERE
+    id = @evaluation_id
+    AND user_id = @user_id;
