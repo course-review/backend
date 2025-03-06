@@ -13,6 +13,7 @@ import (
 	"coursereview/app/generated/sql"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -63,6 +64,10 @@ func main() {
 
 	app := fiber.New()
 	app.Use(logger.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowHeaders: "Origin, Content-Type, Accept",
+	}))
 
 	pool, err := connectDB()
 	if err != nil {
@@ -164,6 +169,9 @@ func main() {
 		user, err := DecodeJWT(c.Query("token"))
 		if err != nil {
 			return c.Status(401).JSON(fiber.Map{"error": err.Error()})
+		}
+		if user.Exp < time.Now().Unix() {
+			return c.Status(401).JSON(fiber.Map{"error": "Token expired"})
 		}
 		c.Locals("unique_id", user.UniqueID)
 		log.Println(user.UniqueID)
