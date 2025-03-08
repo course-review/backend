@@ -20,7 +20,7 @@ import (
 )
 
 func connectDB() (*pgxpool.Pool, error) {
-	dbURL := "postgres://postgres:mysecretpassword@localhost:5432/postgres"
+	dbURL := os.Getenv("DB_URL")
 	pool, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
 		return nil, err

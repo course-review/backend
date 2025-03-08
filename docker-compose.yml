@@ -1,17 +1,36 @@
-version: "3.8"
 services:
-  postgresql:
-    image: "postgres:16"
+  course_review_database:
+    image: "postgres:17"
     ports:
       - "5432:5432"
     restart: always
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: cr_db
       POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_USER: postgres
+      POSTGRES_USER: cr_user
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "cr_user", "-d", "cr_db"]
+      interval: 10s
+      retries: 5
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - course_review_database:/var/lib/postgresql/data
       - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
 
+
+  course_review_api:
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: cr_api
+    ports:
+      - "8080:3000" # external : internal
+    environment:
+      DB_URL: postgres://cr_user:mysecretpassword@course_review_database:5432/cr_db
+    depends_on:
+      course_review_database:
+        condition: service_healthy
+
+
 volumes:
-  postgres_data:
+  course_review_database:
