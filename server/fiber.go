@@ -34,6 +34,14 @@ type TokenProperties struct {
 	UniqueID string `json:"unique_id"`
 }
 
+type Ratings struct { //can I parse this directly to pgtype.Float8?
+	Recommended float64 `json:"recommended"`
+	Engaging    float64 `json:"engaging"`
+	Difficulty  float64 `json:"difficulty"`
+	Effort      float64 `json:"effort"`
+	Resources   float64 `json:"resources"`
+}
+
 // DecodeJWT decodes a JWT payload without verifying the signature
 func DecodeJWT(token string) (*TokenProperties, error) {
 	parts := strings.Split(token, ".")
@@ -166,7 +174,18 @@ func main() {
 	auth := app.Group("/auth")
 
 	auth.Use("/", func(c *fiber.Ctx) error {
-		user, err := DecodeJWT(c.Query("token"))
+		token := c.Query("token")
+		if token == "" {
+			type Token struct {
+				Token string `json:"token"`
+			}
+			var data Token
+			if err := c.BodyParser(&data); err != nil {
+				return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+			}
+			token = data.Token
+		}
+		user, err := DecodeJWT(token)
 		if err != nil {
 			return c.Status(401).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -174,58 +193,71 @@ func main() {
 			return c.Status(401).JSON(fiber.Map{"error": "Token expired"})
 		}
 		c.Locals("unique_id", user.UniqueID)
-		log.Println(user.UniqueID)
 		return c.Next()
 	})
 
 	auth.Get("/getUserData", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
-		log.Println(uniqueId)
 		data, err := db.GetUserData(c.Context(), uniqueId)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
+		log.Println(data)
+		c.JSON(data)
+		log.Println(c.Response())
 		return c.JSON(data)
 	})
 
 	auth.Post("/insertReview", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
-		//todo check here if mapping already exists
+		type payload struct {
+			CourseNumber string `json:"courseNumber"`
+			Semester     string `json:"semester"`
+			Review       string `json:"review"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		var newRating Ratings
+		if err := c.BodyParser(&newRating); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
 
 		id, err := db.GetCourseEvaluationMap(c.Context(), sql.GetCourseEvaluationMapParams{})
 		if err != nil {
-			id, err = db.SetCourseEvaluationMap(c.Context(), sql.SetCourseEvaluationMapParams{UserID: uniqueId, CourseNumber: c.Query("courseNumber"), Semester: pgtype.Text{String: c.Query("semester"), Valid: true}})
+			id, err = db.SetCourseEvaluationMap(c.Context(), sql.SetCourseEvaluationMapParams{UserID: uniqueId, CourseNumber: data.CourseNumber, Semester: pgtype.Text{String: data.Semester, Valid: true}})
 			if err != nil {
 				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 			}
 		} else {
-			_, err = db.UpdateSemester(c.Context(), sql.UpdateSemesterParams{EvaluationID: id, Semester: pgtype.Text{String: c.Query("semester"), Valid: true}})
+			_, err = db.UpdateSemester(c.Context(), sql.UpdateSemesterParams{EvaluationID: id, Semester: pgtype.Text{String: data.Semester, Valid: true}})
 			if err != nil {
 				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 			}
 		}
 
-		reviewText := strings.TrimSpace(c.Query("review"))
-
+		reviewText := strings.TrimSpace(data.Review)
+		log.Println(reviewText)
 		if reviewText != "" {
-			_, err := db.SetReview(c.Context(), sql.SetReviewParams{EvaluationID: id, Review: c.Query("review")})
+			_, err := db.SetReview(c.Context(), sql.SetReviewParams{EvaluationID: id, Review: reviewText})
 			if err != nil {
 				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 			}
 		}
+		update := sql.SetRatingParams{ //check if rating is 0
+			EvaluationID: id,
+			Recommended:  pgtype.Float8{Float64: newRating.Recommended, Valid: true},
+			Engaging:     pgtype.Float8{Float64: newRating.Engaging, Valid: true},
+			Difficulty:   pgtype.Float8{Float64: newRating.Difficulty, Valid: true},
+			Effort:       pgtype.Float8{Float64: newRating.Effort, Valid: true},
+			Resources:    pgtype.Float8{Float64: newRating.Resources, Valid: true},
+		}
 
-		if c.Query("rating") != "" {
-			_, err := db.SetRating(c.Context(), sql.SetRatingParams{
-				EvaluationID: id,
-				Recommended:  pgtype.Int4{Int32: int32(c.QueryInt("Recommended"))},
-				Engaging:     pgtype.Int4{Int32: int32(c.QueryInt("Engaging"))},
-				Difficulty:   pgtype.Int4{Int32: int32(c.QueryInt("Difficulty"))},
-				Effort:       pgtype.Int4{Int32: int32(c.QueryInt("Effort"))},
-				Resources:    pgtype.Int4{Int32: int32(c.QueryInt("Resources"))},
-			})
-			if err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-			}
+		_, err = db.SetRating(c.Context(), update)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
 		return c.JSON(fiber.Map{"success": "Review added"})
@@ -233,13 +265,21 @@ func main() {
 
 	auth.Post("/updateReview", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
-		id := int32(c.QueryInt("id"))
-		_, err := db.CheckUserWithId(c.Context(), sql.CheckUserWithIdParams{EvaluationID: id, UserID: uniqueId})
+		type payload struct {
+			Id     int32  `json:"id"`
+			Review string `json:"review"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		_, err := db.CheckUserWithId(c.Context(), sql.CheckUserWithIdParams{EvaluationID: data.Id, UserID: uniqueId})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		review, err := db.UpdateReview(c.Context(), sql.UpdateReviewParams{Review: c.Query("review"), EvaluationID: id, UserID: uniqueId})
+		review, err := db.UpdateReview(c.Context(), sql.UpdateReviewParams{Review: data.Review, EvaluationID: data.Id, UserID: uniqueId})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -248,13 +288,21 @@ func main() {
 
 	auth.Post("/deleteReview", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
-		id := int32(c.QueryInt("id"))
-		_, err := db.CheckUserWithId(c.Context(), sql.CheckUserWithIdParams{EvaluationID: id, UserID: uniqueId})
+
+		type payload struct {
+			Id int32 `json:"id"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		_, err := db.CheckUserWithId(c.Context(), sql.CheckUserWithIdParams{EvaluationID: data.Id, UserID: uniqueId})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		review, err := db.DeleteReview(c.Context(), id)
+		review, err := db.DeleteReview(c.Context(), data.Id)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -276,20 +324,36 @@ func main() {
 	// 	}
 	// 	return c.JSON(rating)
 	// })
-
 	auth.Post("/updateRating", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
 
-		_, err := db.CheckUserWithId(c.Context(), sql.CheckUserWithIdParams{EvaluationID: int32(c.QueryInt("id")), UserID: uniqueId})
+		type payload struct {
+			Id int32 `json:"id"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		_, err := db.CheckUserWithId(c.Context(), sql.CheckUserWithIdParams{EvaluationID: data.Id, UserID: uniqueId})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		data := new(sql.UpdateRatingParams)
-		if err := c.BodyParser(data); err != nil {
-			return err
+		var newRating Ratings
+		if err := c.BodyParser(&newRating); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 		}
-		rating, err := db.UpdateRating(c.Context(), *data)
+
+		update := sql.UpdateRatingParams{
+			EvaluationID: data.Id,
+			Recommended:  pgtype.Float8{Float64: newRating.Recommended, Valid: newRating.Recommended != 0},
+			Engaging:     pgtype.Float8{Float64: newRating.Engaging, Valid: newRating.Engaging != 0},
+			Difficulty:   pgtype.Float8{Float64: newRating.Difficulty, Valid: newRating.Difficulty != 0},
+			Effort:       pgtype.Float8{Float64: newRating.Effort, Valid: newRating.Effort != 0},
+			Resources:    pgtype.Float8{Float64: newRating.Resources, Valid: newRating.Resources != 0},
+		}
+		rating, err := db.UpdateRating(c.Context(), update)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -298,8 +362,16 @@ func main() {
 
 	auth.Post("/updateSemester", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
+		type payload struct { //can I parse this directly to pgtype.Text?
+			Id       int32  `json:"id"`
+			Semester string `json:"semester"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
 
-		semester, err := db.UpdateSemester(c.Context(), sql.UpdateSemesterParams{EvaluationID: int32(c.QueryInt("id")), Semester: pgtype.Text{String: c.Query("semester"), Valid: true}, UserID: uniqueId})
+		semester, err := db.UpdateSemester(c.Context(), sql.UpdateSemesterParams{EvaluationID: data.Id, Semester: pgtype.Text{String: data.Semester, Valid: true}, UserID: uniqueId})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -309,42 +381,44 @@ func main() {
 	// // // // // // // //
 	// mod / admin needed //
 	// // // // // // // //
-	moderator := app.Group("/moderator")
+	moderator := auth.Group("/moderator")
 
 	moderator.Use("/", func(c *fiber.Ctx) error {
-		user, err := DecodeJWT(c.Query("token"))
+		uniqueId, _ := c.Locals("unique_id").(string)
+		user, err := db.GetUser(c.Context(), uniqueId)
 		if err != nil {
-			return c.Status(401).JSON(fiber.Map{"error": err.Error()})
+			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
 		}
-		mod, err := db.GetUser(c.Context(), user.UniqueID)
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-		}
-		if mod.Moderator.Bool == false {
-			return c.Status(401).JSON(fiber.Map{"error": "Not authorized"})
+		if user.Moderator.Bool == false && user.Admin.Bool == false {
+			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
 		}
 		return c.Next()
 	})
 
-	admin := app.Group("/admin")
+	admin := auth.Group("/admin")
 	admin.Use("/", func(c *fiber.Ctx) error {
-		user, err := DecodeJWT(c.Query("token"))
-		if err != nil {
-			return c.Status(401).JSON(fiber.Map{"error": err.Error()})
-		}
-		mod, err := db.GetUser(c.Context(), user.UniqueID)
+		uniqueId, _ := c.Locals("unique_id").(string)
+		user, err := db.GetUser(c.Context(), uniqueId)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
-		if mod.Admin.Bool == false {
+		if user.Admin.Bool == false {
 			return c.Status(401).JSON(fiber.Map{"error": "Not authorized"})
 		}
 		return c.Next()
 	})
 
 	moderator.Post("/setCurrentSemester", func(c *fiber.Ctx) error {
+		type payload struct {
+			List []string `json:"list"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
 		db.RemoveCurrentSemester(c.Context())
-		for _, semester := range strings.Split(c.Query("list"), ",") {
+		for _, semester := range data.List {
 			_, err := db.SetCurrentSemester(c.Context(), string(semester))
 			if err != nil {
 				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -354,7 +428,15 @@ func main() {
 	})
 
 	admin.Post("/setModerator", func(c *fiber.Ctx) error {
-		val, err := db.SetModerator(c.Context(), c.Query("user"))
+		type payload struct {
+			User string `json:"user"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		val, err := db.SetModerator(c.Context(), data.User)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -370,7 +452,15 @@ func main() {
 	})
 
 	moderator.Post("/verifyReview", func(c *fiber.Ctx) error {
-		review, err := db.VerifyReview(c.Context(), int32(c.QueryInt("id")))
+		type payload struct {
+			Id int32 `json:"id"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		review, err := db.VerifyReview(c.Context(), data.Id)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -378,7 +468,16 @@ func main() {
 	})
 
 	moderator.Post("/rejectReview", func(c *fiber.Ctx) error {
-		review, err := db.RejectReview(c.Context(), int32(c.QueryInt("id")))
+		type payload struct {
+			Id               int32  `json:"id"`
+			RequestedChanges string `json:"requested_changes"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		review, err := db.RejectReview(c.Context(), sql.RejectReviewParams{EvaluationID: data.Id, RequestedChanges: pgtype.Text{String: data.RequestedChanges, Valid: true}})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -386,17 +485,22 @@ func main() {
 	})
 
 	app.Post("/setUser", func(c *fiber.Ctx) error {
-		data := new(sql.SetUserParams)
-		if err := c.BodyParser(data); err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		type payload struct {
+			User string `json:"user"`
 		}
-		user, err := db.SetUser(c.Context(), *data)
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		user, err := db.SetUser(c.Context(), data.User)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.JSON(user)
 	})
 
+	//todo: not used yet
 	admin.Post("/addCourse", func(c *fiber.Ctx) error {
 		data := new(sql.SetCourseParams)
 		if err := c.BodyParser(data); err != nil {

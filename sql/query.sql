@@ -65,6 +65,8 @@ ORDER BY
 -- name: GetUserData :many
 SELECT
     reviews.review,
+    reviews.published,
+    reviews.requested_changes,
     ratings.recommended,
     ratings.engaging,
     ratings.difficulty,
@@ -73,15 +75,16 @@ SELECT
     semester,
     course_evaluation_map.course_number,
     course_name,
-    reviews.id as ReviewId,
-    ratings.id as RatingId
+    course_evaluation_map.id as EvaluationId
 FROM
-    reviews
-    JOIN course_evaluation_map ON reviews.evaluation_id = course_evaluation_map.id
-    JOIN ratings ON reviews.evaluation_id = ratings.evaluation_id
+    course_evaluation_map
+    LEFT JOIN reviews ON reviews.evaluation_id = course_evaluation_map.id
+    LEFT JOIN ratings ON course_evaluation_map.id = ratings.evaluation_id
     JOIN courses ON course_evaluation_map.course_number = courses.course_number
 WHERE
-    user_id = @user_id;
+    course_evaluation_map.user_id = @user_id
+LIMIT
+    10;
 
 -- -- name: Review :one
 -- WITH evaluation AS (
@@ -137,9 +140,9 @@ VALUES
 
 -- name: SetUser :many
 INSERT INTO
-    users (user_id, user_name)
+    users (user_id)
 VALUES
-    (@user_id, @user_name) RETURNING *;
+    (@user_id) RETURNING *;
 
 -- name: SetCourse :many
 INSERT INTO
@@ -209,7 +212,7 @@ WHERE
 SELECT
     courses.course_number,
     course_name,
-    user_name,
+    users.user_id,
     actions.name,
     info,
     date
@@ -262,7 +265,9 @@ WHERE
 UPDATE
     reviews
 SET
-    review = @review
+    review = @review,
+    old_review = CASE WHEN published = 'pending' THEN old_review ELSE review END,
+    published = 'pending'
 FROM
     course_evaluation_map
 WHERE
@@ -292,16 +297,29 @@ WHERE
     evaluation_id = @evaluation_id RETURNING *;
 
 -- name: UpdateRating :one
-UPDATE
-    ratings
-SET
-    recommended = @recommended,
-    engaging = @engaging,
-    difficulty = @difficulty,
-    effort = @effort,
-    resources = @resources
-WHERE
-    evaluation_id = @evaluation_id RETURNING *;
+INSERT INTO ratings (
+    evaluation_id,
+    recommended,
+    engaging,
+    difficulty,
+    effort,
+    resources
+)
+VALUES (
+    @evaluation_id,
+    @recommended,
+    @engaging,
+    @difficulty,
+    @effort,
+    @resources
+)
+ON CONFLICT (evaluation_id) DO UPDATE SET
+    recommended = EXCLUDED.recommended,
+    engaging = EXCLUDED.engaging,
+    difficulty = EXCLUDED.difficulty,
+    effort = EXCLUDED.effort,
+    resources = EXCLUDED.resources
+RETURNING *;
 
 -- name: DeleteRating :one
 DELETE FROM
@@ -310,17 +328,15 @@ WHERE
     evaluation_id = @evaluation_id RETURNING *;
 
 -- name: SetModerator :one
-UPDATE
-    users
-SET
-    moderator = NOT moderator
-WHERE
-    user_id = @user_id RETURNING *;
+
+INSERT INTO
+    users (user_id, moderator)
+VALUES
+    (@user_id, TRUE) RETURNING *;
 
 -- name: GetModerators :many
 SELECT
-    user_id,
-    user_name
+    user_id
 FROM
     users
 WHERE
@@ -329,6 +345,8 @@ WHERE
 -- name: GetUnverifiedReviews :many
 SELECT
     reviews.review,
+    reviews.old_review,
+    reviews.requested_changes,
     course_evaluation_map.course_number,
     courses.course_name,
     course_evaluation_map.user_id,
@@ -344,7 +362,8 @@ WHERE
 UPDATE
     reviews
 SET
-    published = 'verified'
+    published = 'verified',
+    requested_changes = NULL
 WHERE
     evaluation_id = @evaluation_id RETURNING *;
 
@@ -352,7 +371,8 @@ WHERE
 UPDATE
     reviews
 SET
-    published = 'rejected'
+    published = 'rejected',
+    requested_changes = @requested_changes
 WHERE
     evaluation_id = @evaluation_id RETURNING *;
 
