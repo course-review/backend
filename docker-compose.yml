@@ -14,7 +14,6 @@ services:
       retries: 5
     volumes:
       - course_review_database:/var/lib/postgresql/data
-      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
 
 
   course_review_api:

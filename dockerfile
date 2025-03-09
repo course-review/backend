@@ -7,4 +7,6 @@ RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
 RUN sqlc generate
 
-ENTRYPOINT ["go", "run", "server/fiber.go"]
+WORKDIR /app/server
+
+ENTRYPOINT ["go", "run", "."]

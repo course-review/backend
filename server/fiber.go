@@ -69,6 +69,7 @@ func DecodeJWT(token string) (*TokenProperties, error) {
 //todo check if user is allowed to do the action
 
 func main() {
+	RunMigration()
 
 	app := fiber.New()
 	app.Use(logger.New())
