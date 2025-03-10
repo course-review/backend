@@ -4,3 +4,9 @@ To generate the sqlc files:
 To run the server:  
 `docker compose up -d`  
 `go run server/fiber.go`
+
+docker:
+have postgres, sqlc and go
+set up db with schema.sql
+sqlc generate
+go run server/fiber.go

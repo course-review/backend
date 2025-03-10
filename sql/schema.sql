@@ -36,11 +36,11 @@ CREATE TABLE ratings (
     id SERIAL PRIMARY KEY, -- Unique identifier for the rating
     evaluation_id INTEGER NOT NULL, -- Reference to the evaluation
     date DATE DEFAULT NOW(), -- Date of the rating
-    recommended FLOAT DEFAULT NULL CHECK (recommended BETWEEN 1.0 AND 5.0), -- Enforces 1.0 - 5.0 range
-    engaging FLOAT DEFAULT NULL CHECK (engaging BETWEEN 1.0 AND 5.0),
-    difficulty FLOAT DEFAULT NULL CHECK (difficulty BETWEEN 1.0 AND 5.0),
-    effort FLOAT DEFAULT NULL CHECK (effort BETWEEN 1.0 AND 5.0),
-    resources FLOAT DEFAULT NULL CHECK (resources BETWEEN 1.0 AND 5.0),
+    recommended INTEGER DEFAULT NULL CHECK (recommended BETWEEN 1 AND 5), -- Enforces 1 - 5 range
+    engaging INTEGER DEFAULT NULL CHECK (engaging BETWEEN 1 AND 5),
+    difficulty INTEGER DEFAULT NULL CHECK (difficulty BETWEEN 1 AND 5),
+    effort INTEGER DEFAULT NULL CHECK (effort BETWEEN 1 AND 5),
+    resources INTEGER DEFAULT NULL CHECK (resources BETWEEN 1 AND 5),
     FOREIGN KEY (evaluation_id) REFERENCES course_evaluation_map(id),
     UNIQUE (evaluation_id) -- Ensures one rating per evaluation
 );

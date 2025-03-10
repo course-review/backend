@@ -82,9 +82,7 @@ FROM
     LEFT JOIN ratings ON course_evaluation_map.id = ratings.evaluation_id
     JOIN courses ON course_evaluation_map.course_number = courses.course_number
 WHERE
-    course_evaluation_map.user_id = @user_id
-LIMIT
-    10;
+    course_evaluation_map.user_id = @user_id;
 
 -- -- name: Review :one
 -- WITH evaluation AS (
@@ -237,6 +235,22 @@ WHERE
     user_id = @user_id
     AND course_number = @course_number;
 
+-- name: GetReviewWithId :one
+SELECT
+    review
+FROM
+    reviews
+WHERE
+    evaluation_id = @evaluation_id;
+
+-- name: GetRatingWithId :one
+SELECT
+    id
+FROM
+    ratings
+WHERE
+    evaluation_id = @evaluation_id;
+
 -- name: SetCourseEvaluationMap :one
 INSERT INTO
     course_evaluation_map (user_id, course_number, semester)
@@ -272,8 +286,7 @@ FROM
     course_evaluation_map
 WHERE
     reviews.evaluation_id = course_evaluation_map.id
-    AND course_evaluation_map.id = @evaluation_id
-    AND course_evaluation_map.user_id = @user_id RETURNING *;
+    AND course_evaluation_map.id = @evaluation_id RETURNING *;
 
 -- name: GetCurrentSemester :many
 SELECT
@@ -326,6 +339,24 @@ DELETE FROM
     ratings
 WHERE
     evaluation_id = @evaluation_id RETURNING *;
+
+-- name: CheckRatingAndReview :one
+SELECT
+    reviews.id,
+    ratings.id
+FROM
+    course_evaluation_map
+    LEFT JOIN reviews ON course_evaluation_map.id = reviews.evaluation_id
+    LEFT JOIN ratings ON course_evaluation_map.id = ratings.evaluation_id
+WHERE
+    course_evaluation_map.id = @evaluation_id
+    AND (reviews.id IS NOT NULL OR ratings.id IS NOT NULL);
+
+-- name: DeleteCourseEvaluationMap :one
+DELETE FROM
+    course_evaluation_map
+WHERE
+    id = @evaluation_id RETURNING *;
 
 -- name: SetModerator :one
 

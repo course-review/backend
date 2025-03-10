@@ -34,12 +34,12 @@ type TokenProperties struct {
 	UniqueID string `json:"unique_id"`
 }
 
-type Ratings struct { //can I parse this directly to pgtype.Float8?
-	Recommended float64 `json:"recommended"`
-	Engaging    float64 `json:"engaging"`
-	Difficulty  float64 `json:"difficulty"`
-	Effort      float64 `json:"effort"`
-	Resources   float64 `json:"resources"`
+type Ratings struct { //can I parse this directly to pgtype.Int4?
+	Recommended int32 `json:"recommended"`
+	Engaging    int32 `json:"engaging"`
+	Difficulty  int32 `json:"difficulty"`
+	Effort      int32 `json:"effort"`
+	Resources   int32 `json:"resources"`
 }
 
 // DecodeJWT decodes a JWT payload without verifying the signature
@@ -220,13 +220,9 @@ func main() {
 			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
 		}
 
-		var newRating Ratings
-		if err := c.BodyParser(&newRating); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
-		}
-
-		id, err := db.GetCourseEvaluationMap(c.Context(), sql.GetCourseEvaluationMapParams{})
+		id, err := db.GetCourseEvaluationMap(c.Context(), sql.GetCourseEvaluationMapParams{UserID: uniqueId, CourseNumber: data.CourseNumber})
 		if err != nil {
+			//check here if there is data to set
 			id, err = db.SetCourseEvaluationMap(c.Context(), sql.SetCourseEvaluationMapParams{UserID: uniqueId, CourseNumber: data.CourseNumber, Semester: pgtype.Text{String: data.Semester, Valid: true}})
 			if err != nil {
 				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -238,29 +234,11 @@ func main() {
 			}
 		}
 
-		reviewText := strings.TrimSpace(data.Review)
-		log.Println(reviewText)
-		if reviewText != "" {
-			_, err := db.SetReview(c.Context(), sql.SetReviewParams{EvaluationID: id, Review: reviewText})
-			if err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-			}
-		}
-		update := sql.SetRatingParams{ //check if rating is 0
-			EvaluationID: id,
-			Recommended:  pgtype.Float8{Float64: newRating.Recommended, Valid: true},
-			Engaging:     pgtype.Float8{Float64: newRating.Engaging, Valid: true},
-			Difficulty:   pgtype.Float8{Float64: newRating.Difficulty, Valid: true},
-			Effort:       pgtype.Float8{Float64: newRating.Effort, Valid: true},
-			Resources:    pgtype.Float8{Float64: newRating.Resources, Valid: true},
-		}
-
-		_, err = db.SetRating(c.Context(), update)
+		err = reviewChange(c, db, id, data.Review)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+			return err
 		}
-
-		return c.JSON(fiber.Map{"success": "Review added"})
+		return ratingChange(c, db, id)
 	})
 
 	auth.Post("/updateReview", func(c *fiber.Ctx) error {
@@ -279,10 +257,38 @@ func main() {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		review, err := db.UpdateReview(c.Context(), sql.UpdateReviewParams{Review: data.Review, EvaluationID: data.Id, UserID: uniqueId})
+		return reviewChange(c, db, data.Id, data.Review)
+	})
+
+	auth.Post("/deleteRating", func(c *fiber.Ctx) error {
+		uniqueId, _ := c.Locals("unique_id").(string)
+		type payload struct {
+			Id int32 `json:"id"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
+
+		_, err := db.CheckUserWithId(c.Context(), sql.CheckUserWithIdParams{EvaluationID: data.Id, UserID: uniqueId})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
+
+		review, err := db.DeleteRating(c.Context(), data.Id)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		test, err := db.CheckRatingAndReview(c.Context(), data.Id)
+		log.Println(test)
+		if err != nil {
+			_, err = db.DeleteCourseEvaluationMap(c.Context(), data.Id)
+			if err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+			}
+		}
+
 		return c.JSON(review)
 	})
 
@@ -306,24 +312,19 @@ func main() {
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
+
+		test, err := db.CheckRatingAndReview(c.Context(), data.Id)
+		log.Println(test)
+		if err != nil {
+			_, err = db.DeleteCourseEvaluationMap(c.Context(), data.Id)
+			if err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+			}
+		}
+
 		return c.JSON(review)
 	})
 
-	// auth.Post("/insertRating", func(c *fiber.Ctx) error {
-	// 	//todo check if mapId already exists
-
-	// 	//if not create it
-
-	// 	data := new(sql.SetRatingParams)
-	// 	if err := c.BodyParser(data); err != nil {
-	// 		return err
-	// 	}
-	// 	rating, err := db.SetRating(c.Context(), *data)
-	// 	if err != nil {
-	// 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-	// 	}
-	// 	return c.JSON(rating)
-	// })
 	auth.Post("/updateRating", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
 
@@ -339,25 +340,7 @@ func main() {
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
-
-		var newRating Ratings
-		if err := c.BodyParser(&newRating); err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
-		}
-
-		update := sql.UpdateRatingParams{
-			EvaluationID: data.Id,
-			Recommended:  pgtype.Float8{Float64: newRating.Recommended, Valid: newRating.Recommended != 0},
-			Engaging:     pgtype.Float8{Float64: newRating.Engaging, Valid: newRating.Engaging != 0},
-			Difficulty:   pgtype.Float8{Float64: newRating.Difficulty, Valid: newRating.Difficulty != 0},
-			Effort:       pgtype.Float8{Float64: newRating.Effort, Valid: newRating.Effort != 0},
-			Resources:    pgtype.Float8{Float64: newRating.Resources, Valid: newRating.Resources != 0},
-		}
-		rating, err := db.UpdateRating(c.Context(), update)
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-		}
-		return c.JSON(rating)
+		return ratingChange(c, db, data.Id)
 	})
 
 	auth.Post("/updateSemester", func(c *fiber.Ctx) error {
@@ -389,7 +372,7 @@ func main() {
 		if err != nil {
 			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
 		}
-		if user.Moderator.Bool == false && user.Admin.Bool == false {
+		if !user.Moderator.Bool && !user.Admin.Bool {
 			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
 		}
 		return c.Next()
@@ -402,7 +385,7 @@ func main() {
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
-		if user.Admin.Bool == false {
+		if !user.Admin.Bool {
 			return c.Status(401).JSON(fiber.Map{"error": "Not authorized"})
 		}
 		return c.Next()
@@ -514,4 +497,70 @@ func main() {
 	})
 
 	log.Fatal(app.Listen(":3000"))
+}
+
+func reviewChange(c *fiber.Ctx, db *sql.Queries, evalId int32, review string) error {
+	review = strings.TrimSpace(review)
+	if review == "" {
+		return c.Status(500).JSON(fiber.Map{"error": "Review cannot be empty"})
+	}
+
+	//check if eval id exists in review table
+	//if it doesn't, insert
+	//if it does, update
+
+	_, err := db.GetReviewWithId(c.Context(), evalId)
+	if err != nil {
+		_, err = db.SetReview(c.Context(), sql.SetReviewParams{EvaluationID: evalId, Review: review})
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+	} else {
+		_, err = db.UpdateReview(c.Context(), sql.UpdateReviewParams{EvaluationID: evalId, Review: review})
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+	}
+	return c.JSON(fiber.Map{"success": "Set review"})
+}
+
+func ratingChange(c *fiber.Ctx, db *sql.Queries, evalId int32) error {
+	//check if eval id exists in rating table
+	//if it doesn't, insert
+	//if it does, update
+	var newRating Ratings
+	if err := c.BodyParser(&newRating); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+	}
+
+	ratings := sql.SetRatingParams{
+		EvaluationID: evalId,
+		Recommended:  pgtype.Int4{Int32: newRating.Recommended, Valid: newRating.Recommended != 0},
+		Engaging:     pgtype.Int4{Int32: newRating.Engaging, Valid: newRating.Engaging != 0},
+		Difficulty:   pgtype.Int4{Int32: newRating.Difficulty, Valid: newRating.Difficulty != 0},
+		Effort:       pgtype.Int4{Int32: newRating.Effort, Valid: newRating.Effort != 0},
+		Resources:    pgtype.Int4{Int32: newRating.Resources, Valid: newRating.Resources != 0},
+	}
+
+	_, err := db.GetRatingWithId(c.Context(), evalId)
+	if err != nil {
+		if newRating.Recommended+newRating.Engaging+newRating.Difficulty+newRating.Effort+newRating.Resources == 0 {
+			return c.Status(200).JSON(fiber.Map{"error": "Ratings not set"})
+		}
+		_, err = db.SetRating(c.Context(), ratings)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"success": "Set rating"})
+	} else {
+		if newRating.Recommended+newRating.Engaging+newRating.Difficulty+newRating.Effort+newRating.Resources == 0 {
+			return c.Status(500).JSON(fiber.Map{"error": "Ratings cannot be empty"})
+		}
+		updateRatings := sql.UpdateRatingParams(ratings)
+		_, err := db.UpdateRating(c.Context(), updateRatings)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(fiber.Map{"success": "Updated rating"})
+	}
 }
