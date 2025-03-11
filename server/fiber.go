@@ -131,14 +131,6 @@ func main() {
 		return c.JSON(ratings)
 	})
 
-	app.Get("/getStats", func(c *fiber.Ctx) error {
-		stats, err := db.GetStats(c.Context())
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
-		}
-		return c.JSON(stats)
-	})
-
 	app.Get("/courses", func(c *fiber.Ctx) error {
 		data, err := db.GetCourses(c.Context())
 		if err != nil {
