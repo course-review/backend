@@ -3,8 +3,8 @@ name: Build and Deploy the Course Review Backend
 on:
   push:
     branches: [ main ]
-    # paths:
-    #   - 'server/**'
+    paths:
+      - 'server/**'
 
 jobs:
   build-and-publish-container:
@@ -47,3 +47,13 @@ jobs:
           subject-name: ghcr.io/course-review/backend
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+  send-request-to-watchtower:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send request
+        uses: satak/webrequest-action@master
+        with:
+          url: ${{ secrets.WATCHTOWER_URL }}
+          method: GET
+          headers: '{"Authorization": "Bearer ${{ secrets.WATCHTOWER_TOKEN }}"}'
