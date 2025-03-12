@@ -3,8 +3,8 @@ name: Build and Deploy the Course Review Backend
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'server/**'
+    # paths:
+    #   - 'server/**'
 
 jobs:
   build-and-publish-container:
@@ -29,7 +29,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@60a0d343a0d8a18aedee9d34e62251f752153bdb
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ghcr.io/course-review/backend
 
       - name: Build and push Docker image
         id: push
