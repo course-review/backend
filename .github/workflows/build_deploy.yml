@@ -2,9 +2,9 @@ name: Build and Deploy the Course Review Backend
 
 on:
   push:
-    # branches: [ master ]
-    # paths:
-    #   - 'server/**'
+    branches: [ main ]
+    paths:
+      - 'server/**'
 
 jobs:
   build-and-publish-container:
@@ -21,7 +21,7 @@ jobs:
       - name: Log in to the Container registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
