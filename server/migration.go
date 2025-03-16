@@ -17,22 +17,22 @@ func RunMigration() {
 
 	db, err := sql.Open("postgres", databaseURL+"?sslmode=disable")
 	if err != nil {
-		fmt.Println("Failed to open database: %v", err)
+		fmt.Printf("Failed to open database: %v\n", err)
 	}
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		fmt.Println("Failed to create migration driver: %v", err)
+		fmt.Printf("Failed to create migration driver: %v\n", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
 		"file:///app/sql/migrations",
 		"postgres", driver)
 	if err != nil {
-		fmt.Println("Failed to initialize migration: %v", err)
+		fmt.Printf("Failed to initialize migration: %v\n", err)
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		fmt.Println("Migration failed: %v", err)
+		fmt.Printf("Migration failed: %v\n", err)
 	}
 }
