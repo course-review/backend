@@ -195,9 +195,6 @@ func main() {
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
-		log.Println(data)
-		c.JSON(data)
-		log.Println(c.Response())
 		return c.JSON(data)
 	})
 
@@ -273,8 +270,7 @@ func main() {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		test, err := db.CheckRatingAndReview(c.Context(), data.Id)
-		log.Println(test)
+		_, err = db.CheckRatingAndReview(c.Context(), data.Id)
 		if err != nil {
 			_, err = db.DeleteCourseEvaluationMap(c.Context(), data.Id)
 			if err != nil {
@@ -306,8 +302,8 @@ func main() {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		test, err := db.CheckRatingAndReview(c.Context(), data.Id)
-		log.Println(test)
+		_, err = db.CheckRatingAndReview(c.Context(), data.Id)
+
 		if err != nil {
 			_, err = db.DeleteCourseEvaluationMap(c.Context(), data.Id)
 			if err != nil {
