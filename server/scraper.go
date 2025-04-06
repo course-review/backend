@@ -12,15 +12,17 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/gocolly/colly"
 	"github.com/jackc/pgx/v5"
 )
 
 var webhookURL = os.Getenv("DISCORD_WEBHOOK_URL")
+var regexRuleCourseNumber = regexp.MustCompile("<b>(\\d{3}-\\d{4}-[A-Z0-9]{3})<\\/b>")
+var regexRuleCourseName = regexp.MustCompile("\\w{2}\">(.*?)<\\/a><\\/b>")
 
 const (
 	username     = "VVZ Scrape-Inator 6000"
 	avatarURL    = "https://cdn.discordapp.com/attachments/819966095070330950/1076174116165537832/vvz.png"
-	semester     = "2025S"
 	language     = "de"
 	resultFolder = "vvzScrapeResults/"
 )
@@ -41,11 +43,11 @@ func sendDiscordMessage(title, description string, color int) {
 	http.Post(webhookURL, "application/json", bytes.NewBuffer(data))
 }
 
-func sendScrapingStart() {
+func sendScrapingStart(semester string) {
 	sendDiscordMessage("Scraping new courses of "+semester, "", 1651554)
 }
 
-func sendScrapingEnd(newCourses int) {
+func sendScrapingEnd(newCourses int, semester string) {
 	title := fmt.Sprintf("Finished scraping %d new courses of %s", newCourses, semester)
 	sendDiscordMessage(title, "", 1651554)
 
@@ -68,8 +70,8 @@ func sendScrapingEnd(newCourses int) {
 	}
 }
 
-func sendScrapingError(courseNr, url string) {
-	description := fmt.Sprintf("[%s](%s) caused an issue", courseNr, url)
+func sendScrapingError(err string) {
+	description := fmt.Sprintf("%s caused an issue", err)
 	sendDiscordMessage("uh-oh", description, 6428441)
 }
 
@@ -94,100 +96,66 @@ func vvzScraper(semester string, mainContext context.Context) {
 	cancel()
 }
 
+func vvzListUrl(semester string, language string) string {
+	return fmt.Sprintf("https://www.vvz.ethz.ch/Vorlesungsverzeichnis/sucheLehrangebot.view?seite=0&semkez=%s&lang=%s", semester, language)
+}
+
 func routine(semester string, context context.Context, db *sql.Queries) {
+	sendScrapingStart(semester)
 
-	_ = os.MkdirAll(resultFolder, os.ModePerm)
-	resultFilePath := resultFolder + semester + ".txt"
-	_ = os.WriteFile(resultFilePath, []byte{}, 0644)
+	collector := colly.NewCollector(
+		colly.AllowedDomains("www.vvz.ethz.ch"),
+	)
+	collector.SetRequestTimeout(120 * time.Second)
 
-	sendScrapingStart()
+	var courseNumbers []string
+	var courseNames []string
 
-	vvzUrl := fmt.Sprintf("https://www.vvz.ethz.ch/Vorlesungsverzeichnis/sucheLehrangebot.view?lang=%s&semkez=%s&seite=0&studiengangTyp=&deptId=&studiengangAbschnittId=&lerneinheitstitel=&lerneinheitscode=&unterbereichAbschnittId=&rufname=&kpRange=0,999&lehrsprache=&bereichAbschnittId=&ansicht=1&katalogdaten=&wahlinfo=", language, semester)
+	collector.OnHTML("tr", func(e *colly.HTMLElement) {
+		tableRow, _ := e.DOM.Html()
+		matchesCourseNumber := regexRuleCourseNumber.FindAllStringSubmatch(tableRow, -1)
+		matchesCourseName := regexRuleCourseName.FindAllStringSubmatch(tableRow, -1)
 
-	courseUrl1 := fmt.Sprintf("https://www.vvz.ethz.ch/Vorlesungsverzeichnis/sucheLehrangebot.view?lang=%s&search=on&semkez=%s&lerneinheitscode=", language, semester)
-	courseUrl2 := "&_strukturAus=on&search=Suchen"
-	//search on and Suchen?
-
-	newCourses := 0
-	var text []byte
-
-	cacheFile := semester + ".json"
-	if data, err := os.ReadFile(cacheFile); err == nil {
-		text = data
-	} else {
-		// print url
-		fmt.Println("Fetching VVZ page:", vvzUrl)
-		resp, err := http.Get(vvzUrl)
-		if err != nil {
-			fmt.Println("Failed to fetch VVZ page:", err)
-			return
+		for _, match := range matchesCourseNumber {
+			if len(match) > 1 {
+				courseNumbers = append(courseNumbers, match[1])
+			}
 		}
-		defer resp.Body.Close()
-		text, _ = io.ReadAll(resp.Body)
-		_ = os.WriteFile(cacheFile, text, 0644)
-	}
-	// log the response
 
-	coursePattern := regexp.MustCompile(`<b>(\d{3}-\d{4}-[A-Z0-9]{3})<\/b>`)
-	matches := coursePattern.FindAllStringSubmatch(string(text), -1)
+		for _, match := range matchesCourseName {
+			if len(match) > 1 {
+				courseNames = append(courseNames, match[1])
+			}
+		}
+	})
 
-	if len(matches) == 0 {
-		sendScrapingEnd(404)
+	err := collector.Visit(vvzListUrl(semester, language))
+	if err != nil {
+		fmt.Println("Error visiting URL:", err)
+		sendScrapingError("Error visiting URL: " + err.Error())
 		return
 	}
 
-	fmt.Println("Amount of matches:", len(matches))
-
-	for _, match := range matches {
-		courseNr := match[1]
-
+	if len(courseNumbers) != len(courseNames) {
+		sendScrapingError("Course numbers and names are not equal in length")
+		return
+	}
+	newCourses := 0
+	for i, item := range courseNumbers {
 		// check db
-		_, err := db.GetCourseName(context, courseNr)
+		_, err := db.GetCourseName(context, item)
 		if err == nil {
-			fmt.Println("Course already exists in DB:", courseNr)
 			continue
 		}
-
-		courseURL := courseUrl1 + courseNr + courseUrl2
-		fmt.Println("Fetching course URL:", courseURL)
-
-		resp, err := http.Get(courseURL)
-		if err != nil {
-			sendScrapingError(courseNr, courseURL)
-			continue
-		}
-		defer resp.Body.Close()
-
-		body, _ := io.ReadAll(resp.Body)
-		titlePattern := regexp.MustCompile(language + `">(.*?)<\/a><\/b>`)
-		titleMatch := titlePattern.FindStringSubmatch(string(body))
-
-		if titleMatch == nil {
-			sendScrapingError(courseNr, courseURL)
-			fmt.Println("Error scraping", courseNr, "-", courseURL)
-			continue
-		}
-
-		course := titleMatch[0]
-
 		// add course to db
-		_, err = db.AddCourse(context, sql.AddCourseParams{CourseNumber: courseNr, CourseName: course})
+		_, err = db.AddCourse(context, sql.AddCourseParams{CourseNumber: item, CourseName: courseNames[i]})
 		if err != nil {
 			fmt.Println("Error adding course to DB:", err)
-			sendScrapingError(courseNr, courseURL)
+			sendScrapingError(item)
 			continue
 		}
-
-		line := fmt.Sprintf("vvzScrapeResults%s - %s\n", courseNr, course)
-		f, _ := os.OpenFile(resultFilePath, os.O_APPEND|os.O_WRONLY, 0644)
-		f.WriteString(line)
-		f.Close()
-
 		newCourses++
-
-		// Sleep for 1 second before the next iteration
-		time.Sleep(1 * time.Second)
 	}
 
-	sendScrapingEnd(newCourses)
+	sendScrapingEnd(newCourses, semester)
 }
