@@ -484,7 +484,22 @@ func main() {
 		}
 		return c.JSON(course)
 	})
+	//todo: change to SSE
+	moderator.Post("/scrapeCourses", func(c *fiber.Ctx) error {
+		type payload struct {
+			Semester string `json:"semester"`
+		}
+		var data payload
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Cannot parse JSON"})
+		}
 
+		log.Println("Scraping courses for semester:", data.Semester)
+		//vvzScraper("2025S")
+		go vvzScraper(data.Semester, c.Context())
+
+		return c.JSON(fiber.Map{"success": "Scraped courses"})
+	})
 	log.Fatal(app.Listen(":3000"))
 }
 

@@ -9,4 +9,6 @@ RUN sqlc generate
 
 WORKDIR /app/server
 
+RUN go mod download
+
 ENTRYPOINT ["go", "run", "."]

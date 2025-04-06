@@ -26,6 +26,7 @@ services:
       - "8080:3000" # external : internal
     environment:
       DB_URL: postgres://cr_user:mysecretpassword@course_review_database:5432/cr_db
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
     depends_on:
       course_review_database:
         condition: service_healthy
