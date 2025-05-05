@@ -77,7 +77,15 @@ func main() {
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
-
+	// Custom File Writer
+	file, err := os.OpenFile("api.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer file.Close()
+	app.Use(logger.New(logger.Config{
+		Output: file,
+	}))
 	pool, err := connectDB()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -186,6 +194,7 @@ func main() {
 			return c.Status(401).JSON(fiber.Map{"error": "Token expired"})
 		}
 		c.Locals("unique_id", user.UniqueID)
+		log.Println("UserID: " + user.UniqueID)
 		return c.Next()
 	})
 
