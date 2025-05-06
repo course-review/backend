@@ -76,7 +76,7 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 	// Custom File Writer
-	file, err := os.OpenFile("api.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.OpenFile("logs/api.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
