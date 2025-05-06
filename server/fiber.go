@@ -66,8 +66,6 @@ func DecodeJWT(token string) (*TokenProperties, error) {
 	return &claims, nil
 }
 
-//todo check if user is allowed to do the action
-
 func main() {
 	RunMigration()
 
@@ -86,6 +84,40 @@ func main() {
 	app.Use(logger.New(logger.Config{
 		Output: file,
 	}))
+
+	// Redirect default log output to the file
+	log.SetOutput(file)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	app.Use(func(c *fiber.Ctx) error {
+		// Log request method, path, and IP
+		log.Printf("%s %s - %s", c.Method(), c.Path(), c.IP())
+
+		// Log request headers
+		log.Println("Request Headers:")
+		c.Request().Header.VisitAll(func(key, value []byte) {
+			log.Printf("%s: %s", key, value)
+		})
+
+		// Log request body
+		body := c.BodyRaw()
+		if len(body) > 0 {
+			log.Println("Request Body:")
+			log.Printf("%s", body)
+		}
+
+		err := c.Next()
+
+		// Log response status and headers
+		log.Printf("Response Status: %d", c.Response().StatusCode())
+		log.Println("Response Headers:")
+		c.Response().Header.VisitAll(func(key, value []byte) {
+			log.Printf("%s: %s", key, value)
+		})
+
+		return err
+	})
+
 	pool, err := connectDB()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
