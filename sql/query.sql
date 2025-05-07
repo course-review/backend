@@ -49,6 +49,19 @@ FROM
 WHERE
     course_number = @course_number;
 
+-- name: GetRatingsAvg :one
+SELECT
+    AVG(recommended) AS recommended,
+    AVG(engaging) AS engaging,
+    AVG(difficulty) AS difficulty,
+    AVG(effort) AS effort,
+    AVG(resources) AS resources
+FROM
+    ratings
+    JOIN course_evaluation_map ON ratings.evaluation_id = course_evaluation_map.id
+WHERE
+    course_number = @course_number;
+
 -- name: GetReviews :many
 SELECT
     review,

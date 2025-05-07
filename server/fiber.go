@@ -171,6 +171,13 @@ func main() {
 		}
 		return c.JSON(ratings)
 	})
+	app.Get("/getRatingsAvg", func(c *fiber.Ctx) error {
+		ratings, err := db.GetRatingsAvg(c.Context(), c.Query("course"))
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(ratings)
+	})
 
 	app.Get("/courses", func(c *fiber.Ctx) error {
 		data, err := db.GetCourses(c.Context())
