@@ -406,11 +406,8 @@ func main() {
 	moderator.Use("/", func(c *fiber.Ctx) error {
 		uniqueId, _ := c.Locals("unique_id").(string)
 		user, err := db.GetUser(c.Context(), uniqueId)
-		if err != nil {
-			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
-		}
-		if !user.Moderator.Bool && !user.Admin.Bool {
-			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
+		if err != nil || (!user.Moderator.Bool && !user.Admin.Bool) {
+			return c.Status(403).JSON(fiber.Map{"error": "Forbidden, user not at least moderator"})
 		}
 		return c.Next()
 	})
