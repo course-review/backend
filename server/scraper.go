@@ -27,7 +27,7 @@ const (
 	resultFolder = "vvzScrapeResults/"
 )
 
-func sendDiscordMessage(title, description string, color int) {
+func SendDiscordMessage(title, description string, color int) {
 	payload := map[string]interface{}{
 		"username":   username,
 		"avatar_url": avatarURL,
@@ -44,12 +44,12 @@ func sendDiscordMessage(title, description string, color int) {
 }
 
 func sendScrapingStart(semester string) {
-	sendDiscordMessage("Scraping new courses of "+semester, "", 1651554)
+	SendDiscordMessage("Scraping new courses of "+semester, "", 1651554)
 }
 
 func sendScrapingEnd(newCourses int, semester string) {
 	title := fmt.Sprintf("Finished scraping %d new courses of %s", newCourses, semester)
-	sendDiscordMessage(title, "", 1651554)
+	SendDiscordMessage(title, "", 1651554)
 
 	if newCourses > 0 {
 		filePath := resultFolder + semester + ".txt"
@@ -72,7 +72,7 @@ func sendScrapingEnd(newCourses int, semester string) {
 
 func sendScrapingError(err string) {
 	description := fmt.Sprintf("%s caused an issue", err)
-	sendDiscordMessage("uh-oh", description, 6428441)
+	SendDiscordMessage("uh-oh", description, 6428441)
 }
 
 func vvzScraper(semester string, mainContext context.Context) {

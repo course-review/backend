@@ -553,7 +553,7 @@ func reviewChange(c *fiber.Ctx, db *sql.Queries, evalId int32, review string) er
 	if review == "" {
 		return c.Status(500).JSON(fiber.Map{"error": "Review cannot be empty"})
 	}
-
+	SendDiscordMessage("Review to review: https://coursereview.ch/admin", "", 16712959)
 	//check if eval id exists in review table
 	//if it doesn't, insert
 	//if it does, update
