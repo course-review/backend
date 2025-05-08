@@ -95,7 +95,9 @@ FROM
     LEFT JOIN ratings ON course_evaluation_map.id = ratings.evaluation_id
     JOIN courses ON course_evaluation_map.course_number = courses.course_number
 WHERE
-    course_evaluation_map.user_id = @user_id;
+    course_evaluation_map.user_id = @user_id
+ORDER BY
+    GREATEST(reviews.date, ratings.date) DESC;
 
 -- -- name: Review :one
 -- WITH evaluation AS (
