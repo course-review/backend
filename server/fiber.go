@@ -234,6 +234,16 @@ func main() {
 		}
 		c.Locals("unique_id", user.UniqueID)
 		log.Println("UserID: " + user.UniqueID)
+		// check if user exists in db
+		_, err = db.GetUser(c.Context(), user.UniqueID)
+		if err != nil {
+			// if not, create user
+			_, err = db.SetUser(c.Context(), user.UniqueID)
+			if err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+			}
+			log.Println("User created: " + user.UniqueID)
+		}
 		return c.Next()
 	})
 
