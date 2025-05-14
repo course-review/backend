@@ -89,32 +89,24 @@ func main() {
 	log.SetOutput(file)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	// Open secondary log file
+	statsLogFile, err := os.OpenFile("logs/stats.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening secondary log file: %v", err)
+	}
+	defer statsLogFile.Close()
+
+	// Create a custom logger
+	statsLogger := log.New(statsLogFile, "", log.LstdFlags)
+
 	app.Use(func(c *fiber.Ctx) error {
-		// Log request method, path, and IP
-		log.Printf("%s %s - %s", c.Method(), c.Path(), c.IP())
-
-		// Log request headers
-		log.Println("Request Headers:")
-		c.Request().Header.VisitAll(func(key, value []byte) {
-			log.Printf("%s: %s", key, value)
-		})
-
-		// Log request body
-		body := c.BodyRaw()
-		if len(body) > 0 {
-			log.Println("Request Body:")
-			log.Printf("%s", body)
-		}
+		log.Printf("%s %s - %s", c.Method(), c.Path(), c.OriginalURL())
+		statsLogger.Printf("path=%s", c.Path())
 
 		err := c.Next()
 
 		// Log response status and headers
 		log.Printf("Response Status: %d", c.Response().StatusCode())
-		log.Println("Response Headers:")
-		c.Response().Header.VisitAll(func(key, value []byte) {
-			log.Printf("%s: %s", key, value)
-		})
-
 		return err
 	})
 
@@ -233,7 +225,7 @@ func main() {
 			return c.Status(401).JSON(fiber.Map{"error": "Token expired"})
 		}
 		c.Locals("unique_id", user.UniqueID)
-		log.Println("UserID: " + user.UniqueID)
+		statsLogger.Println("user_id=" + user.UniqueID)
 		// check if user exists in db
 		_, err = db.GetUser(c.Context(), user.UniqueID)
 		if err != nil {
@@ -242,7 +234,7 @@ func main() {
 			if err != nil {
 				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 			}
-			log.Println("User created: " + user.UniqueID)
+			statsLogger.Println("new_user=" + user.UniqueID)
 		}
 		return c.Next()
 	})
