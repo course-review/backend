@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -501,6 +502,52 @@ func main() {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.JSON(review)
+	})
+
+	moderator.Get("/usageStats", func(c *fiber.Ctx) error {
+		file, err := os.Open("logs/stats.log")
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		defer file.Close()
+
+		type StatEntry struct {
+			Time  string `json:"time"`
+			Value string `json:"value"`
+		}
+		var userEntries []StatEntry
+		var pathEntries []StatEntry
+
+		// file is not json, so we need to parse it line by line
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			// split line by space
+			parts := strings.Split(line, " ")
+			if len(parts) < 3 {
+				continue
+			}
+			// get value
+			itemParts := strings.Split(parts[2], "=")
+			if len(itemParts) < 2 {
+				continue
+			}
+			key := itemParts[0]
+			value := itemParts[1]
+			stat := StatEntry{
+				Time:  parts[0] + " " + parts[1],
+				Value: value,
+			}
+			// check if key exists in map
+			if key == "user_id" {
+				userEntries = append(userEntries, stat)
+			} else if key == "path" {
+				pathEntries = append(pathEntries, stat)
+			} else {
+				log.Println("Unknown key:", key)
+			}
+		}
+		return c.JSON(fiber.Map{"users": userEntries, "paths": pathEntries})
 	})
 
 	app.Post("/setUser", func(c *fiber.Ctx) error {
