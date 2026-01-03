@@ -249,12 +249,13 @@ func main() {
 		return c.JSON(data)
 	})
 
-	auth.Post("/insertReview", func(c *fiber.Ctx) error {
-		uniqueId, _ := c.Locals("unique_id").(string)
+	app.Post("/insertReview", func(c *fiber.Ctx) error {
+		// uniqueId, _ := c.Locals("unique_id").(string)
 		type payload struct {
 			CourseNumber string `json:"courseNumber"`
 			Semester     string `json:"semester"`
 			Review       string `json:"review"`
+			uniqueId	 string `json:"randomString"`
 		}
 		var data payload
 		if err := c.BodyParser(&data); err != nil {
