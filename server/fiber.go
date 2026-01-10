@@ -262,6 +262,16 @@ func main() {
 		}
 		uniqueId := data.UniqueId + "noAuth"
 
+		_, err = db.GetUser(c.Context(), uniqueId)
+		if err != nil {
+			// if not, create user
+			_, err = db.SetUser(c.Context(), uniqueId)
+			if err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+			}
+			statsLogger.Println("new_user=" + uniqueId)
+		}
+
 		id, err := db.GetCourseEvaluationMap(c.Context(), sql.GetCourseEvaluationMapParams{UserID: uniqueId, CourseNumber: data.CourseNumber})
 		if err != nil {
 			//check here if there is data to set
