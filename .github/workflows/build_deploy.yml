@@ -49,6 +49,7 @@ jobs:
           push-to-registry: true
 
   send-request-to-watchtower:
+    needs: build-and-publish-container
     runs-on: ubuntu-latest
     steps:
       - name: Send request
