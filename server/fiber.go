@@ -3,6 +3,10 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -43,28 +47,64 @@ type Ratings struct { //can I parse this directly to pgtype.Int4?
 	Resources   int32 `json:"resources"`
 }
 
-// DecodeJWT decodes a JWT payload without verifying the signature
 func DecodeJWT(token string) (*TokenProperties, error) {
 	parts := strings.Split(token, ".")
-	if len(parts) < 2 {
+	if len(parts) != 3 {
 		return nil, fmt.Errorf("invalid JWT token")
 	}
 
+	// Decode public key from env (base64 DER)
+	pubKeyB64 := os.Getenv("VITE_JWT_PUBLIC_KEY")
+	if pubKeyB64 == "" {
+		return nil, fmt.Errorf("public key not set")
+	}
+	pubKeyDER, err := base64.StdEncoding.DecodeString(pubKeyB64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode public key: %w", err)
+	}
+
+	// Parse public key
+	pub, err := ParseRSAPublicKeyFromDER(pubKeyDER)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	// Verify signature
+	headerPayload := strings.Join(parts[:2], ".")
+	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil {
+		return nil, fmt.Errorf("invalid signature encoding: %w", err)
+	}
+	hashed := sha256.Sum256([]byte(headerPayload))
+	if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, hashed[:], sig); err != nil {
+		return nil, fmt.Errorf("invalid JWT signature: %w", err)
+	}
+
+	// Decode payload
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return nil, err
 	}
-
 	var claims TokenProperties
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		return nil, err
 	}
-
 	if claims.Exp < time.Now().Unix() {
 		return nil, fmt.Errorf("token expired")
 	}
-
 	return &claims, nil
+}
+
+func ParseRSAPublicKeyFromDER(der []byte) (*rsa.PublicKey, error) {
+	pub, err := x509.ParsePKIXPublicKey(der)
+	if err != nil {
+		return nil, err
+	}
+	rsaPub, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("not RSA public key")
+	}
+	return rsaPub, nil
 }
 
 func main() {
