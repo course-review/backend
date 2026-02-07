@@ -36,6 +36,24 @@ FROM
 WHERE
     published = 'verified';
 
+-- name: GetAllCoursesWithReviewsOrRatings :many
+SELECT
+    courses.course_number,
+    courses.course_name,
+    MAX(GREATEST(reviews.date, ratings.date)) AS latest_date
+FROM
+    course_evaluation_map as cem
+    JOIN courses ON cem.course_number = courses.course_number
+    LEFT JOIN reviews ON reviews.evaluation_id = cem.id
+    LEFT JOIN ratings ON ratings.evaluation_id = cem.id
+WHERE
+    reviews.published = 'verified'
+    OR ratings.evaluation_id IS NOT NULL
+GROUP BY
+    courses.course_number
+ORDER BY
+    latest_date DESC;
+
 -- name: GetRatings :many
 SELECT
     recommended,
@@ -181,6 +199,18 @@ SELECT
     course_name
 FROM
     courses;
+
+-- name: GetCoursesWithReviewAmount :many
+SELECT
+    c.course_number,
+    c.course_name,
+    Count(reviews.id)
+FROM
+    courses AS c
+    LEFT JOIN course_evaluation_map ON c.course_number = course_evaluation_map.course_number
+    LEFT JOIN reviews ON course_evaluation_map.id = reviews.evaluation_id
+GROUP BY
+    c.course_number, c.course_name;
 
 -- name: GetUserReviewsAndRatings :many
 SELECT

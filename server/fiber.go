@@ -220,6 +220,14 @@ func main() {
 		return c.JSON(data)
 	})
 
+	app.Get("/coursesWithReviewAmount", func(c *fiber.Ctx) error {
+		data, err := db.GetCoursesWithReviewAmount(c.Context())
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(data)
+	})
+
 	app.Get("/searchCourses", func(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Not implemented"})
 	})
@@ -599,6 +607,14 @@ func main() {
 			}
 		}
 		return c.JSON(fiber.Map{"users": userEntries, "paths": pathEntries})
+	})
+
+	app.Get("/coursesWithRatingsOrReviews", func(c *fiber.Ctx) error {
+		courses, err := db.GetAllCoursesWithReviewsOrRatings(c.Context())
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(courses)
 	})
 
 	app.Post("/setUser", func(c *fiber.Ctx) error {
