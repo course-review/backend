@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -117,6 +118,7 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 	// Custom File Writer
+
 	if err := os.MkdirAll("logs", 0755); err != nil {
 		log.Fatalf("error creating logs directory: %v", err)
 	}
@@ -201,7 +203,7 @@ func main() {
 	})
 
 	app.Get("/getRatings", func(c *fiber.Ctx) error {
-		ratings, err := db.GetRatings(c.Context(), c.Query("course"))
+		ratings, err := db.GetCourseRatings(c.Context(), c.Query("course"))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -209,6 +211,19 @@ func main() {
 	})
 	app.Get("/getRatingsAvg", func(c *fiber.Ctx) error {
 		ratings, err := db.GetRatingsAvg(c.Context(), c.Query("course"))
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(ratings)
+	})
+	app.Get("/getAllRatingsAvg", func(c *fiber.Ctx) error {
+		page, err := strconv.Atoi((c.Query("page", "1")))
+		if err != nil {
+			return c.Status(422).JSON(fiber.Map{"error": err.Error()})
+		}
+		limit := 200
+		offset := (page - 1) * limit
+		ratings, err := db.GetAllRatingsAvg(c.Context(), sql.GetAllRatingsAvgParams{PageLimit: int32(limit), PageOffset: int32(offset)})
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}

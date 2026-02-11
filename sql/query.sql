@@ -54,19 +54,6 @@ GROUP BY
 ORDER BY
     latest_date DESC;
 
--- name: GetRatings :many
-SELECT
-    recommended,
-    engaging,
-    difficulty,
-    effort,
-    resources
-FROM
-    ratings
-    JOIN course_evaluation_map ON ratings.evaluation_id = course_evaluation_map.id
-WHERE
-    course_number = @course_number;
-
 -- name: GetRatingsAvg :one
 SELECT
     AVG(recommended) AS recommended,
@@ -250,6 +237,24 @@ FROM
     JOIN course_evaluation_map ON ratings.evaluation_id = course_evaluation_map.id
 WHERE
     course_number = @course_number;
+
+-- name: GetAllRatingsAvg :many
+SELECT
+    course_number,
+    AVG(recommended) AS recommended,
+    AVG(engaging) AS engaging,
+    AVG(difficulty) AS difficulty,
+    AVG(effort) AS effort,
+    AVG(resources) AS resources
+FROM
+    ratings
+    JOIN course_evaluation_map ON ratings.evaluation_id = course_evaluation_map.id
+GROUP BY
+    course_number
+LIMIT
+    @page_limit
+OFFSET
+    @page_offset;
 
 -- name: GetLogs :many
 SELECT

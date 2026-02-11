@@ -25,8 +25,13 @@ func RunMigration() {
 		fmt.Printf("Failed to create migration driver: %v\n", err)
 	}
 
+	migrationsPath := os.Getenv("MIGRATIONS_PATH")
+	if migrationsPath == "" {
+		migrationsPath = "file:///app/sql/migrations"
+	}
+
 	m, err := migrate.NewWithDatabaseInstance(
-		"file:///app/sql/migrations",
+		migrationsPath,
 		"postgres", driver)
 	if err != nil {
 		fmt.Printf("Failed to initialize migration: %v\n", err)
