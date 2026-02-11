@@ -249,6 +249,12 @@ SELECT
 FROM
     ratings
     JOIN course_evaluation_map ON ratings.evaluation_id = course_evaluation_map.id
+WHERE
+    recommended IS NOT NULL
+    AND engaging IS NOT NULL
+    AND difficulty IS NOT NULL
+    AND effort IS NOT NULL
+    AND resources IS NOT NULL
 GROUP BY
     course_number
 LIMIT
