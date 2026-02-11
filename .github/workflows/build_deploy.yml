@@ -3,8 +3,8 @@ name: Build and Deploy the Course Review Backend
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'server/**'
+    # paths:
+    #   - 'server/**'
 
 jobs:
   build-and-publish-container:
