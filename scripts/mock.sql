@@ -24,7 +24,7 @@ INSERT INTO reviews (evaluation_id, published, review, requested_changes) VALUES
 
 INSERT INTO ratings (evaluation_id, recommended, engaging, difficulty, effort, resources) VALUES
 (1, 5, 5, 3, 4, 5),
-(2, 3, 2, 5, 5, 3);
+(2, null, 2, 5, 5, 3);
 
 INSERT INTO event_log (evaluation_id, user_id, action_id, info) VALUES
 (1, 'u_001', 1, 'User submitted initial evaluation'),
