@@ -117,6 +117,9 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 	// Custom File Writer
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		log.Fatalf("error creating logs directory: %v", err)
+	}
 	file, err := os.OpenFile("logs/api.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)

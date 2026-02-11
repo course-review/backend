@@ -15,12 +15,13 @@ services:
     volumes:
       - course_review_database:/var/lib/postgresql/data
 
-
   course_review_api:
+    profiles:
+      - backend
     restart: always
     build:
       context: .
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
     container_name: cr_api
     ports:
       - "8080:3000" # external : internal
@@ -31,7 +32,6 @@ services:
     depends_on:
       course_review_database:
         condition: service_healthy
-
 
 volumes:
   course_review_database:

@@ -1,0 +1,15 @@
+[tools]
+go = "1.23.12"
+postgres = "17.7"
+sqlc = "1.30.0"
+
+[env]
+DB_URL = "postgres://cr_user:mysecretpassword@localhost:5432/cr_db"
+MIGRATIONS_PATH = "file://../sql/migrations"
+
+# sets the envs for easily using `psql` locally
+PGHOST = "localhost"
+PGPORT = 5432
+PGDATABASE = "cr_db"
+PGUSER = "cr_user"
+PGPASSWORD = "mysecretpassword"
