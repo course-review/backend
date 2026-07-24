@@ -262,6 +262,31 @@ LIMIT
 OFFSET
     @page_offset;
 
+-- name: GetCourseSummaries :many
+SELECT
+    c.course_number,
+    c.course_name,
+    AVG(r.recommended)::float8 AS recommended_avg,
+    AVG(r.engaging)::float8    AS engaging_avg,
+    AVG(r.difficulty)::float8  AS difficulty_avg,
+    AVG(r.effort)::float8      AS effort_avg,
+    AVG(r.resources)::float8   AS resources_avg,
+    COUNT(r.recommended)       AS recommended_count,
+    COUNT(r.engaging)          AS engaging_count,
+    COUNT(r.difficulty)        AS difficulty_count,
+    COUNT(r.effort)            AS effort_count,
+    COUNT(r.resources)         AS resources_count,
+    COUNT(r.id)                AS rating_count,
+    COUNT(rev.id) FILTER (WHERE rev.published = 'verified') AS review_count,
+    MAX(GREATEST(rev.date, r.date)) AS latest_date
+FROM courses c
+    JOIN course_evaluation_map cem ON cem.course_number = c.course_number
+    LEFT JOIN ratings r  ON r.evaluation_id = cem.id
+    LEFT JOIN reviews rev ON rev.evaluation_id = cem.id
+GROUP BY c.course_number, c.course_name
+HAVING COUNT(r.id) > 0
+    OR COUNT(rev.id) FILTER (WHERE rev.published = 'verified') > 0;
+
 -- name: GetLogs :many
 SELECT
     courses.course_number,

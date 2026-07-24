@@ -10,3 +10,13 @@ sql:
         package: "sql"
         out: "generated/sql"
         sql_package: "pgx/v5"
+        overrides:
+          # AVG(...)::float8 over a LEFT JOIN can legitimately return SQL NULL
+          # (e.g. a course with reviews but no ratings for a category). sqlc's
+          # offline (no live DB) analyzer infers these as non-nullable float64,
+          # which panics pgx's Scan on a NULL row. Force the nullable wrapper
+          # type instead; pgtype.Float8 marshals to a plain JSON number or
+          # `null`, matching the `number | null` TS contract without any
+          # {"Valid":true,...} wrapper leaking into the API response.
+          - db_type: "float8"
+            go_type: "github.com/jackc/pgx/v5/pgtype.Float8"
