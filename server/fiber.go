@@ -246,8 +246,12 @@ func main() {
 		return c.JSON(data)
 	})
 
-	app.Get("/searchCourses", func(c *fiber.Ctx) error {
-		return c.Status(500).JSON(fiber.Map{"error": "Not implemented"})
+	app.Get("/courseSummaries", func(c *fiber.Ctx) error {
+		data, err := db.GetCourseSummaries(c.Context())
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(data)
 	})
 
 	app.Get("/currentSemesters", func(c *fiber.Ctx) error {
