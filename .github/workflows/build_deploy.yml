@@ -3,8 +3,10 @@ name: Build and Deploy the Course Review Backend
 on:
   push:
     branches: [ main ]
-    paths:
-      - '!.github/**'
+    paths-ignore:
+      - '.github/**'
+  workflow_dispatch:
+
 
 jobs:
   build-and-publish-container:
